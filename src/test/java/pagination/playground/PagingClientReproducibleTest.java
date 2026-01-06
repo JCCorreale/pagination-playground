@@ -23,21 +23,36 @@ class PagingClientReproducibleTest {
 
     @ParameterizedTest
     @CsvSource({
-             "100,0.3",
-             "200,0.5",
-             "300,0.1",
-             "500,0.8",
-             "500,0.3",
-            "1000,0.3"
+             "100, 0.30",
+             "200, 0.50",
+             "300, 0.10",
+             "500, 0.80",
+             "500, 0.30",
+            "1000, 0.30",
+            "1000, 0.01"
     })
     void testPagingWithGeneratedDataAndPersist(int size, double saRatio) {
         long seed = System.currentTimeMillis();
         System.out.println("Using seed: " + seed);
+        System.out.println("Size: " + size + ", SA ratio: " + saRatio);
         List<String> generated = generateRandomData(size, saRatio, seed);
         Collections.sort(generated);
 //        persistDataset(generated);
         var server = new PagingServerImpl(generated);
-        runPagingAssertions(server, new PagingClient(server));
+        var assertionsCount = runPagingAssertions(server, new PagingClient(server));
+
+        var totalCalls = server.getCountSACount() + server.getFetchPageCount();
+
+        var countSAPerAssertion = (double) server.getCountSACount() / assertionsCount;
+        var fetchPagePerAssertion = (double) server.getFetchPageCount() / assertionsCount;
+        var totalPerAssertion = (double) totalCalls / assertionsCount;
+
+        System.out.println("Average calls per assertion: \n" +
+                "countSA=" + String.format("%.2f", countSAPerAssertion) + " | " +
+                "fetchPage=" + String.format("%.2f", fetchPagePerAssertion) + " | " +
+                "total=" + String.format("%.2f", totalPerAssertion)
+        );
+        System.out.println("\n---\n");
     }
 
     @Test
@@ -58,8 +73,12 @@ class PagingClientReproducibleTest {
 
     // ---------- core test logic ----------
 
-    private void runPagingAssertions(TestPagingServer server, PagingClient client) {
+    /**
+     * @return The number of assertions run
+     */
+    private int runPagingAssertions(TestPagingServer server, PagingClient client) {
 
+        var assertionsCount = 0;
         var OVER_PAGE_SIZE = 20;
 
         for (int pageSize = 1; pageSize <= server.getAllUsers().size() + OVER_PAGE_SIZE; pageSize++) {
@@ -67,8 +86,11 @@ class PagingClientReproducibleTest {
 
             for (int page = 0; page < totalPages; page++) {
                 runPagingAssertion(server, client, page, pageSize);
+                assertionsCount++;
             }
         }
+
+        return assertionsCount;
     }
 
     private void runPagingAssertion(TestPagingServer server, PagingClient service, int page, int pageSize) {

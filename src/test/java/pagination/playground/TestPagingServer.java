@@ -7,4 +7,8 @@ public interface TestPagingServer extends PagingServer{
     List<String> getAllUsers();
 
     List<String> getExpectedClean();
+
+    int getFetchPageCount();
+
+    int getCountSACount();
 }
