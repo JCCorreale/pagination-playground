@@ -1,6 +1,9 @@
-import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
+
+import static java.util.function.Predicate.not;
 
 public class PagingService {
     private final List<String> allUsers; // lista ordinata completa con SA
@@ -16,12 +19,12 @@ public class PagingService {
 
     public List<String> getExpectedClean() {
         return allUsers.stream()
-                .filter(u -> !u.startsWith(saPrefix))
+                .filter(not(this::isSA))
                 .toList();
     }
 
     public int countServiceAccounts() {
-        return (int) allUsers.stream().filter(u -> u.startsWith(saPrefix)).count();
+        return (int) countSA(allUsers);
     }
 
     public List<String> fetchPage(int offset, int size) {
@@ -34,11 +37,11 @@ public class PagingService {
      * Fetch "clean" page: pagina logica P (zero-based), dimensione size,
      * senza service-account in output.
      */
-    public List<String> fetchCleanPage(int page, int size) {
-        int offsetLogical = page * size;
+    public List<String> fetchCleanPage(int page, int pageSize) {
+        int offsetLogical = page * pageSize;
 
         // 1) fetch pagina con offset logico
-        List<String> pageData = fetchPage(offsetLogical, size);
+        List<String> pageData = fetchPage(offsetLogical, pageSize);
 
         if (pageData.isEmpty()) {
             return pageData;
@@ -47,7 +50,7 @@ public class PagingService {
         String first = pageData.get(0);
         String last = pageData.get(pageData.size() - 1);
 
-        int pageSA = (int)pageData.stream().filter(u -> u.startsWith(saPrefix)).count();
+        int pageSA = (int) countSA(pageData);
 
         // confronto lessicografico per capire se pagina è prima o dopo SA
         if (last.compareTo(saPrefix) < 0) {
@@ -60,21 +63,37 @@ public class PagingService {
         if (first.compareTo(saPrefix) >= 0 && pageSA == 0) {
             // caso: pagina dopo SA, shift offset
             // serve solo per fetchare pageSize anzichè pageSize + countSA - pageSA
-            return fetchPage(offsetLogical + countSA, size);
+            return fetchPage(offsetLogical + countSA, pageSize);
         } else {
 
             // caso ibrido: la pagina contiene SA (o è tutta SA)
 
             // Bound sicuro:
             // fetch = pageSize + countSA - pageSA
-            int fetchSize = size + countSA - pageSA;
+            // IPOTESI: posso paginare per un valore qualsiasi o comunque "abbastanza grande" (countSA "piccolo")
+            int fetchSize = pageSize + countSA - pageSA;
 
             List<String> tail = fetchPage(offsetLogical + pageData.size(), fetchSize);
 
+            var tailSA = countSA(tail);
+
+            var offset = countSA - pageSA - tailSA;
+
             return Stream.concat(pageData.stream(), tail.stream())
-                    .filter(u -> !u.startsWith(saPrefix))
-                    .limit(size)
+                    .filter(not(this::isSA))
+                    .skip(offset)
+                    .limit(pageSize)
                     .toList();
         }
+    }
+
+    private long countSA(List<String> tail) {
+        return tail.stream()
+                .filter(this::isSA)
+                .count();
+    }
+
+    private boolean isSA(String u) {
+        return u.startsWith(saPrefix);
     }
 }

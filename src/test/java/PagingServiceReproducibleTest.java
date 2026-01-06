@@ -1,4 +1,6 @@
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -17,21 +19,37 @@ class PagingServiceReproducibleTest {
     private static final String SA_PREFIX = "service-account-";
     private static final Path DATA_DIR = Path.of("build/test-data");
 
-    @Test
-    void testPagingWithGeneratedDataAndPersist() throws IOException {
-        List<String> generated = generateRandomData(10, 0.3, 42);
+    @ParameterizedTest
+    @CsvSource({
+             "100,0.3",
+             "200,0.5",
+             "300,0.1",
+             "500,0.8",
+             "500,0.3",
+            "1000,0.3"
+    })
+    void testPagingWithGeneratedDataAndPersist(int size, double saRatio) {
+        long seed = System.currentTimeMillis();
+        System.out.println("Using seed: " + seed);
+        List<String> generated = generateRandomData(size, saRatio, seed);
         Collections.sort(generated);
-        Path file = persistDataset(generated);
-        runPagingAssertions(new PagingService(loadDataset(file)));
+//        persistDataset(generated);
+        runPagingAssertions(new PagingService(generated));
     }
 
-
     @Test
-    void testPagingWithExistingDataset() throws IOException {
-        Path file = Path.of("build/test-data/dataset-2026-01-05T20-43-54.txt");
-        var service = new PagingService(loadDataset(file));
-//        runPagingAssertions(service);
-        runPagingAssertion(service, 1, 4);
+    void testPaging() throws IOException {
+
+        long seed = 1767698779825L;
+        int size = 100;
+        double saRatio = 0.3;
+        int page = 49;
+        int pageSize = 1;
+
+        List<String> generated = generateRandomData(size, saRatio, seed);
+        Collections.sort(generated);
+//        persistDataset(generated);
+        runPagingAssertion(new PagingService(generated), page, pageSize);
     }
 
     // ---------- core test logic ----------
