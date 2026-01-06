@@ -40,11 +40,11 @@ class PagingServiceReproducibleTest {
     @Test
     void testPaging() throws IOException {
 
-        long seed = 1767698779825L;
+        long seed = 1767700602857L;
         int size = 100;
         double saRatio = 0.3;
-        int page = 49;
-        int pageSize = 1;
+        int page = 1;
+        int pageSize = 41;
 
         List<String> generated = generateRandomData(size, saRatio, seed);
         Collections.sort(generated);

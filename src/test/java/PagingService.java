@@ -1,6 +1,6 @@
 import java.util.Collections;
 import java.util.List;
-import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
 import static java.util.function.Predicate.not;
@@ -58,20 +58,33 @@ public class PagingService {
             return pageData;
         }
 
-        int countSA = countServiceAccounts();
-
         if (first.compareTo(saPrefix) >= 0 && pageSA == 0) {
             // caso: pagina dopo SA, shift offset
+            int countSA = countServiceAccounts();
             // serve solo per fetchare pageSize anzichè pageSize + countSA - pageSA
             return fetchPage(offsetLogical + countSA, pageSize);
         } else {
 
             // caso ibrido: la pagina contiene SA (o è tutta SA)
 
+
             // Bound sicuro:
             // fetch = pageSize + countSA - pageSA
             // IPOTESI: posso paginare per un valore qualsiasi o comunque "abbastanza grande" (countSA "piccolo")
-            int fetchSize = pageSize + countSA - pageSA;
+
+            int fetchSize;
+            int countSA;
+
+            if (isSAStrictlyContained(pageData)) {
+                // ottimizzazione: SA strettamente contenuti nella pagina
+                countSA = pageSA;
+                fetchSize = pageSize;
+            }
+            else {
+                // se no, mi serve contare gli SA
+                countSA = countServiceAccounts();
+                fetchSize = pageSize + countSA - pageSA;
+            }
 
             List<String> tail = fetchPage(offsetLogical + pageData.size(), fetchSize);
 
@@ -85,6 +98,20 @@ public class PagingService {
                     .limit(pageSize)
                     .toList();
         }
+    }
+
+    private boolean isSAStrictlyContained(List<String> pageData) {
+        List<Integer> saIndices = IntStream.range(0, pageData.size())
+                .filter(i -> isSA(pageData.get(i)))
+                .boxed()
+                .toList();
+
+        if (saIndices.isEmpty()) return false;
+
+        int minSA = Collections.min(saIndices);
+        int maxSA = Collections.max(saIndices);
+
+        return minSA > 0 && maxSA < pageData.size() - 1;
     }
 
     private long countSA(List<String> tail) {
