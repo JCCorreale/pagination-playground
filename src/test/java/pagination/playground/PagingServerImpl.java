@@ -9,13 +9,14 @@ import static pagination.playground.Utils.countSA;
 
 public class PagingServerImpl implements TestPagingServer {
 
-
     private final List<String> allUsers; // lista ordinata completa con SA
 
     @Getter
     private int countSACount = 0;
     @Getter
     private int fetchPageCount = 0;
+    @Getter
+    private int totalRecordsFetched = 0;
 
     public PagingServerImpl(List<String> allUsers) {
         this.allUsers = allUsers;
@@ -44,6 +45,8 @@ public class PagingServerImpl implements TestPagingServer {
         fetchPageCount++;
         int end = Math.min(offset + size, allUsers.size());
         if (offset >= allUsers.size()) return List.of();
-        return allUsers.subList(offset, end);
+        var result = allUsers.subList(offset, end);
+        totalRecordsFetched += result.size();
+        return result;
     }
 }

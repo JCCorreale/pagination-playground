@@ -2,7 +2,7 @@ package pagination.playground;
 
 import java.util.List;
 
-public interface TestPagingServer extends PagingServer{
+public interface TestPagingServer extends PagingServer {
 
     List<String> getAllUsers();
 
@@ -11,4 +11,6 @@ public interface TestPagingServer extends PagingServer{
     int getFetchPageCount();
 
     int getCountSACount();
+
+    int getTotalRecordsFetched();
 }

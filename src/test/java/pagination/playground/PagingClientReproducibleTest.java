@@ -38,8 +38,13 @@ class PagingClientReproducibleTest {
         List<String> generated = generateRandomData(size, saRatio, seed);
         Collections.sort(generated);
 //        persistDataset(generated);
+
         var server = new PagingServerImpl(generated);
-        var assertionsCount = runPagingAssertions(server, new PagingClient(server));
+        var assertionsResult = runPagingAssertions(server, new PagingClient(server));
+
+        var assertionsCount = assertionsResult.assertionsCount();
+
+        var fetchedOverReturned = server.getTotalRecordsFetched() / (double) assertionsResult.totalRecordsReturned();
 
         var totalCalls = server.getCountSACount() + server.getFetchPageCount();
 
@@ -52,6 +57,9 @@ class PagingClientReproducibleTest {
                 "fetchPage=" + String.format("%.2f", fetchPagePerAssertion) + " | " +
                 "total=" + String.format("%.2f", totalPerAssertion)
         );
+
+        System.out.println("Fetched/returned ratio: " + String.format("%.2f", fetchedOverReturned));
+
         System.out.println("\n---\n");
     }
 
@@ -73,11 +81,9 @@ class PagingClientReproducibleTest {
 
     // ---------- core test logic ----------
 
-    /**
-     * @return The number of assertions run
-     */
-    private int runPagingAssertions(TestPagingServer server, PagingClient client) {
+    private PagingTestResult runPagingAssertions(TestPagingServer server, PagingClient client) {
 
+        var totalRecordsReturned = 0;
         var assertionsCount = 0;
         var OVER_PAGE_SIZE = 20;
 
@@ -85,15 +91,18 @@ class PagingClientReproducibleTest {
             int totalPages = (server.getExpectedClean().size() + pageSize - 1) / pageSize;
 
             for (int page = 0; page < totalPages; page++) {
-                runPagingAssertion(server, client, page, pageSize);
+                totalRecordsReturned += runPagingAssertion(server, client, page, pageSize);
                 assertionsCount++;
             }
         }
 
-        return assertionsCount;
+        return new PagingTestResult(assertionsCount, totalRecordsReturned);
     }
 
-    private void runPagingAssertion(TestPagingServer server, PagingClient service, int page, int pageSize) {
+    /**
+     * @return number of records returned by fetchCleanPage
+     */
+    private int runPagingAssertion(TestPagingServer server, PagingClient service, int page, int pageSize) {
         List<String> expected = slice(server.getExpectedClean(), page * pageSize, pageSize);
         List<String> actual = service.fetchCleanPage(page, pageSize);
 
@@ -102,6 +111,8 @@ class PagingClientReproducibleTest {
                 actual,
                 "Mismatch at page %d page size %d".formatted(page, pageSize)
         );
+
+        return actual.size();
     }
 
     // ---------- dataset generation ----------
@@ -155,4 +166,6 @@ class PagingClientReproducibleTest {
         int to = Math.min(from + size, list.size());
         return list.subList(from, to);
     }
+
+    record PagingTestResult(int assertionsCount, int totalRecordsReturned) {}
 }
