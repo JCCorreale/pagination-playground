@@ -1,3 +1,5 @@
+package pagination.playground;
+
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
@@ -14,7 +16,7 @@ import java.util.Random;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-class PagingServiceReproducibleTest {
+class PagingClientReproducibleTest {
 
     private static final String SA_PREFIX = "service-account-";
     private static final Path DATA_DIR = Path.of("build/test-data");
@@ -34,7 +36,8 @@ class PagingServiceReproducibleTest {
         List<String> generated = generateRandomData(size, saRatio, seed);
         Collections.sort(generated);
 //        persistDataset(generated);
-        runPagingAssertions(new PagingService(generated));
+        var server = new PagingServerImpl(generated);
+        runPagingAssertions(server, new PagingClient(server));
     }
 
     @Test
@@ -49,26 +52,27 @@ class PagingServiceReproducibleTest {
         List<String> generated = generateRandomData(size, saRatio, seed);
         Collections.sort(generated);
 //        persistDataset(generated);
-        runPagingAssertion(new PagingService(generated), page, pageSize);
+        var server = new PagingServerImpl(generated);
+        runPagingAssertion(server, new PagingClient(server), page, pageSize);
     }
 
     // ---------- core test logic ----------
 
-    private void runPagingAssertions(PagingService service) {
+    private void runPagingAssertions(TestPagingServer server, PagingClient client) {
 
         var OVER_PAGE_SIZE = 20;
 
-        for (int pageSize = 1; pageSize <= service.getAllUsers().size() + OVER_PAGE_SIZE; pageSize++) {
-            int totalPages = (service.getExpectedClean().size() + pageSize - 1) / pageSize;
+        for (int pageSize = 1; pageSize <= server.getAllUsers().size() + OVER_PAGE_SIZE; pageSize++) {
+            int totalPages = (server.getExpectedClean().size() + pageSize - 1) / pageSize;
 
             for (int page = 0; page < totalPages; page++) {
-                runPagingAssertion(service, page, pageSize);
+                runPagingAssertion(server, client, page, pageSize);
             }
         }
     }
 
-    private void runPagingAssertion(PagingService service, int page, int pageSize) {
-        List<String> expected = slice(service.getExpectedClean(), page * pageSize, pageSize);
+    private void runPagingAssertion(TestPagingServer server, PagingClient service, int page, int pageSize) {
+        List<String> expected = slice(server.getExpectedClean(), page * pageSize, pageSize);
         List<String> actual = service.fetchCleanPage(page, pageSize);
 
         assertEquals(

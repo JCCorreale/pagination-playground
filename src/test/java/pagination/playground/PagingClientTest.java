@@ -1,3 +1,5 @@
+package pagination.playground;
+
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
@@ -8,7 +10,7 @@ import java.util.Random;
 import static org.junit.jupiter.api.Assertions.*;
 
 
-public class PagingServiceTest {
+public class PagingClientTest {
 
     private static final String SA_PREFIX = "service-account-";
 
@@ -30,7 +32,8 @@ public class PagingServiceTest {
         // requisito ESSENZIALE
         Collections.sort(all);
 
-        PagingService service = new PagingService(all);
+        TestPagingServer server = new PagingServerImpl(all);
+        PagingClient service = new PagingClient(server);
 
         // lista di riferimento (senza SA)
         List<String> expectedClean =
@@ -81,7 +84,9 @@ public class PagingServiceTest {
                 "utente_3",
                 "utente_4"
         );
-        PagingService service = new PagingService(data);
+
+        TestPagingServer server = new PagingServerImpl(data);
+        PagingClient service = new PagingClient(server);
 
         List<String> page0 = service.fetchCleanPage(1, 2);
         assertEquals(List.of("utente_3", "utente_4"), page0);
@@ -98,7 +103,9 @@ public class PagingServiceTest {
                 SA_PREFIX + "2",
                 SA_PREFIX + "3"
         );
-        PagingService service = new PagingService(data);
+
+        TestPagingServer server = new PagingServerImpl(data);
+        PagingClient service = new PagingClient(server);
 
 //        // pagina 0 size 2 = utente_1, utente_2 (offset fisico = offset logico)
 //        List<String> page0 = service.fetchCleanPage(0, 2);
@@ -123,7 +130,8 @@ public class PagingServiceTest {
                 "utente_3",
                 "utente_4"
         );
-        PagingService service = new PagingService(data);
+        TestPagingServer server = new PagingServerImpl(data);
+        PagingClient service = new PagingClient(server);
 
         List<String> page0 = service.fetchCleanPage(0, 3);
         assertEquals(List.of("a_utente_1", "utente_2", "utente_3"), page0);
